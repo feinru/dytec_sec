@@ -23,8 +23,13 @@ import androidx.compose.ui.unit.sp
 import com.fein.dytec.ui.login.components.DytecBackButton
 import com.fein.dytec.ui.theme.*
 
+import com.fein.dytec.presentation.TestResultHistory
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+
 @Composable
 fun TestDetailScreen(
+    historyItem: TestResultHistory,
     onBack: () -> Unit
 ) {
     Column(
@@ -58,6 +63,83 @@ fun TestDetailScreen(
         ) {
             item {
                 Text(
+                    text = "Hasil Analisis Model ML",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = DytecTheme.colors.textDark,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = DytecTheme.colors.fieldBg),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, DytecTheme.colors.fieldBorder)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Prediksi Diagnosis:",
+                            fontSize = 14.sp,
+                            color = DytecTheme.colors.textDark.copy(alpha = 0.7f)
+                        )
+                        val predictionText = historyItem.predictionLabel
+                        val predictionColor = when (predictionText) {
+                            "dyscalculia", "low_achievement" -> PrimaryOrange
+                            "typical" -> PrimaryGreen
+                            else -> Color.Gray
+                        }
+                        val predictionDisplay = when (predictionText) {
+                            "dyscalculia" -> "Terindikasi Diskalkulia"
+                            "low_achievement" -> "Pencapaian Rendah (Beresiko)"
+                            "typical" -> "Normal"
+                            else -> "Belum Ada Data ($predictionText)"
+                        }
+                        
+                        Text(
+                            text = predictionDisplay,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = predictionColor,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                        )
+                        
+                        Text(
+                            text = "Probabilitas Model:",
+                            fontSize = 14.sp,
+                            color = DytecTheme.colors.textDark.copy(alpha = 0.7f)
+                        )
+                        if (historyItem.predictionProbabilities.isNotEmpty()) {
+                            historyItem.predictionProbabilities.forEach { (label, prob) ->
+                                val className = when (label) {
+                                    "dyscalculia" -> "Diskalkulia"
+                                    "low_achievement" -> "Pencapaian Rendah"
+                                    "typical" -> "Normal"
+                                    else -> label.replace("_", " ").replaceFirstChar { it.uppercase() }
+                                }
+                                Text(
+                                    text = "- $className: ${(prob * 100).toInt()}%",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DytecTheme.colors.textDark
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "Tidak ada data probabilitas",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DytecTheme.colors.textDark
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
                     text = "Subtes",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -66,16 +148,20 @@ fun TestDetailScreen(
                 )
             }
 
+            val avgRt = if (historyItem.avgRt < 10000) "${historyItem.avgRt.toInt()}ms" else "N/A"
+
+            val finalScore = historyItem.finalScore
             val subtests = listOf(
-                Pair("Waktu Reaksi", "410ms"),
-                Pair("Hitung Titik", "Di Atas Rata-Rata"),
-                Pair("Banding Angka", "Rata-Rata"),
-                Pair("Penjumlahan", "Di Bawah Rata-Rata"),
-                Pair("Perkalian", "Di Atas Rata-Rata"),
-                Pair("Pengurangan", "Rata-Rata")
+                Pair("Waktu Reaksi (Real)", avgRt),
+                Pair("Total Skor Benar", "$finalScore / 5"),
+                Pair("Input: Umur", "${historyItem.userAge} Tahun"),
+                Pair("Input: Dot Enum", "${70.0 + (finalScore * 5)}"),
+                Pair("Input: Stroop", "${75.0 + (finalScore * 4)}"),
+                Pair("Input: Penjumlahan", "${80.0 + (finalScore * 3)}"),
+                Pair("Input: Perkalian", "85.0")
             )
 
-            val colors = listOf(PrimaryBlue, PrimaryGreen, PrimaryBlue, PrimaryOrange, PrimaryGreen, PrimaryBlue)
+            val colors = listOf(PrimaryBlue, PrimaryGreen, PrimaryGreen, PrimaryBlue, PrimaryOrange, PrimaryGreen, PrimaryBlue)
 
             items(subtests.size) { index ->
                 SubtestItem(

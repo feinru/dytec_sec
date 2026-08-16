@@ -26,7 +26,8 @@ import com.fein.dytec.ui.home.tabs.ProfileTab
 @Composable
 fun HomeScreen(
     mainState: MainState,
-    onEvent: (MainEvent) -> Unit
+    onEvent: (MainEvent) -> Unit,
+    onStartDiagnosticTest: () -> Unit
 ) {
     val selectedTab = mainState.selectedHomeTab
 
@@ -60,21 +61,20 @@ fun HomeScreen(
                     HomeTab(
                         hasTakenDiagnostic = mainState.hasTakenDiagnostic,
                         unlockedLessons = mainState.unlockedLessons,
-                        onTakeDiagnostic = { onEvent(MainEvent.NavigateTo(com.fein.dytec.Screen.Diagnostic)) },
+                        onTakeDiagnostic = onStartDiagnosticTest,
                         onStartLesson = { lessonId -> onEvent(MainEvent.NavigateToLesson(lessonId)) }
                     )
                 }
                 1 -> {
                     StatsTab(
-                        onOpenTestDetail = {
-                            onEvent(MainEvent.NavigateTo(com.fein.dytec.Screen.TestDetail))
+                        history = mainState.testHistory,
+                        onOpenTestDetail = { historyItem ->
+                            onEvent(MainEvent.NavigateToTestDetail(historyItem))
                         },
                         onOpenParentMode = {
                             onEvent(MainEvent.NavigateTo(com.fein.dytec.Screen.ParentalGate))
                         },
-                        onTakeDiagnostic = {
-                            onEvent(MainEvent.NavigateTo(com.fein.dytec.Screen.Diagnostic))
-                        }
+                        onTakeDiagnostic = onStartDiagnosticTest
                     )
                 }
                 2 -> {

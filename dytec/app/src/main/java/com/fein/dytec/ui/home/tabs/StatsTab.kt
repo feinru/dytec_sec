@@ -41,7 +41,8 @@ import com.fein.dytec.ui.theme.*
 
 @Composable
 fun StatsTab(
-    onOpenTestDetail: () -> Unit = {},
+    history: List<com.fein.dytec.presentation.TestResultHistory>,
+    onOpenTestDetail: (com.fein.dytec.presentation.TestResultHistory) -> Unit = {},
     onOpenParentMode: () -> Unit = {},
     onTakeDiagnostic: () -> Unit = {}
 ) {
@@ -115,27 +116,36 @@ fun StatsTab(
             }
         }
         
-        HistoryItem(
-            title = "Tes Diagnostik 3",
-            date = "Hari ini",
-            score = "Di Atas Rata-Rata",
-            color = PrimaryGreen,
-            onClick = onOpenTestDetail
-        )
-        HistoryItem(
-            title = "Tes Diagnostik 2",
-            date = "Kemarin",
-            score = "Rata-Rata",
-            color = PrimaryBlue,
-            onClick = onOpenTestDetail
-        )
-        HistoryItem(
-            title = "Tes Diagnostik 1",
-            date = "2 hari lalu",
-            score = "Di Bawah Rata-Rata",
-            color = PrimaryOrange,
-            onClick = onOpenTestDetail
-        )
+        if (history.isEmpty()) {
+            Text(
+                text = "Belum ada riwayat tes",
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            history.forEachIndexed { index, item ->
+                val color = when (item.predictionLabel) {
+                    "dyscalculia", "low_achievement" -> PrimaryOrange
+                    "typical" -> PrimaryGreen
+                    else -> PrimaryBlue
+                }
+                
+                val scoreDisplay = when (item.predictionLabel) {
+                    "dyscalculia" -> "Terindikasi Diskalkulia"
+                    "low_achievement" -> "Pencapaian Rendah"
+                    "typical" -> "Normal"
+                    else -> item.predictionLabel
+                }
+                
+                HistoryItem(
+                    title = "Tes Diagnostik ${history.size - index}",
+                    date = item.dateString,
+                    score = scoreDisplay,
+                    color = color,
+                    onClick = { onOpenTestDetail(item) }
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(150.dp))
     }

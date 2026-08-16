@@ -612,7 +612,7 @@ fun LessonScreen(
                     text = if (isDone) "SELESAI" else if (isWrong) "COBA LAGI" else "PILIH JAWABAN",
                     onClick = { 
                         if (isDone) {
-                            onCompleteLesson(4)
+                            onCompleteLesson(21)
                             onClose()
                         } else if (isWrong) {
                             isSubmitted = false
