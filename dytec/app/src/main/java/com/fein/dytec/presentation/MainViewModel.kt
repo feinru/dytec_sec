@@ -25,8 +25,21 @@ sealed interface MainEvent {
     data class CompleteOnboarding(val name: String, val age: String, val tookDiagnostic: Boolean) : MainEvent
     data class UpdateThemeMode(val mode: ThemeMode) : MainEvent
     data class CompleteLesson(val nextLessonIdToUnlock: Int) : MainEvent
+    data class SaveTestResult(val result: TestResultHistory) : MainEvent
+    data class NavigateToTestDetail(val historyItem: TestResultHistory) : MainEvent
     data object ResetApp : MainEvent
 }
+
+data class TestResultHistory(
+    val id: String,
+    val timestamp: Long,
+    val dateString: String,
+    val finalScore: Int,
+    val avgRt: Double,
+    val predictionLabel: String,
+    val predictionProbabilities: Map<String, Double>,
+    val userAge: Double
+)
 
 data class MainState(
     val currentScreen: Screen = Screen.Login,
@@ -37,12 +50,15 @@ data class MainState(
     val hasTakenDiagnostic: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val currentLessonId: Int? = null,
-    val unlockedLessons: Set<String> = setOf("1")
+    val unlockedLessons: Set<String> = setOf("1"),
+    val testHistory: List<TestResultHistory> = emptyList(),
+    val selectedHistoryItem: TestResultHistory? = null
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sharedPreferences = application.getSharedPreferences("dytec_prefs", Context.MODE_PRIVATE)
+    private val gson = com.google.gson.Gson()
     
     private val _state = MutableStateFlow(MainState())
     val state: StateFlow<MainState> = _state.asStateFlow()
@@ -58,6 +74,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val themeMode = try { ThemeMode.valueOf(themeModeStr) } catch (e: Exception) { ThemeMode.SYSTEM }
         val unlockedLessons = sharedPreferences.getStringSet("unlocked_lessons", setOf("1")) ?: setOf("1")
         
+        val historyJson = sharedPreferences.getString("test_history", "[]")
+        val type = object : com.google.gson.reflect.TypeToken<List<TestResultHistory>>() {}.type
+        val history: List<TestResultHistory> = try { gson.fromJson(historyJson, type) ?: emptyList() } catch (e: Exception) { emptyList() }
+        
         _state.update {
             it.copy(
                 isOnboardingCompleted = isOnboardingCompleted,
@@ -66,7 +86,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 userAge = userAge,
                 hasTakenDiagnostic = hasTakenDiagnostic,
                 themeMode = themeMode,
-                unlockedLessons = unlockedLessons
+                unlockedLessons = unlockedLessons,
+                testHistory = history
             )
         }
 
@@ -87,6 +108,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         when (event) {
             is MainEvent.NavigateTo -> {
                 _state.update { it.copy(currentScreen = event.screen) }
+            }
+            is MainEvent.NavigateToTestDetail -> {
+                _state.update { it.copy(currentScreen = Screen.TestDetail, selectedHistoryItem = event.historyItem) }
             }
             is MainEvent.NavigateToLesson -> {
                 _state.update { it.copy(currentScreen = Screen.Lesson, currentLessonId = event.lessonId) }
@@ -141,6 +165,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         hasTakenDiagnostic = event.tookDiagnostic
                     ) 
                 }
+            }
+            is MainEvent.SaveTestResult -> {
+                val newList = listOf(event.result) + _state.value.testHistory
+                sharedPreferences.edit().putString("test_history", gson.toJson(newList)).apply()
+                _state.update { it.copy(testHistory = newList) }
             }
             is MainEvent.ResetApp -> {
                 sharedPreferences.edit().clear().apply()

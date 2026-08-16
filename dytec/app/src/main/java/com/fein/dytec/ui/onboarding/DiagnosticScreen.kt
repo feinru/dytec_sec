@@ -59,11 +59,19 @@ fun DiagnosticScreen(
     }
 
     if (state.isFinished) {
-        DiagnosticResultScreen(
-            stanine = state.finalStanine,
-            score = state.rawScore,
-            onContinue = onClose
-        )
+        Column(
+            modifier = Modifier.fillMaxSize().background(DytecTheme.colors.bgWhite),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            androidx.compose.material3.CircularProgressIndicator(color = PrimaryGreen)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Menganalisa hasil...",
+                fontWeight = FontWeight.Bold,
+                color = DytecTheme.colors.textDark
+            )
+        }
         return
     }
 

@@ -201,6 +201,8 @@ class MainActivity : ComponentActivity() {
                                 Screen.TestIntro -> {
                                     TestIntroScreen(
                                         onStartTest = {
+                                            val ageDouble = onboardingState.age.toDoubleOrNull() ?: 8.5
+                                            diagnosticViewModel.reset(ageDouble)
                                             viewModel.onEvent(MainEvent.NavigateTo(Screen.Diagnostic))
                                         },
                                         onSkipToHome = {
@@ -216,8 +218,27 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 Screen.Diagnostic -> {
-                                    LaunchedEffect(diagnosticState.isFinished) {
-                                        if (diagnosticState.isFinished) {
+                                    LaunchedEffect(diagnosticState.isFinished, diagnosticState.isApiLoading) {
+                                        if (diagnosticState.isFinished && !diagnosticState.isApiLoading && diagnosticState.predictionLabel != null && !diagnosticState.isSaved) {
+                                            diagnosticViewModel.markAsSaved()
+                                            
+                                            val rtSubtest = diagnosticState.subtests.firstOrNull { it is com.fein.dytec.presentation.onboarding.DiagnosticSubtest.ReactionTime } as? com.fein.dytec.presentation.onboarding.DiagnosticSubtest.ReactionTime
+                                            val avgRt = if (rtSubtest != null && rtSubtest.reactionTimesMs.isNotEmpty()) rtSubtest.reactionTimesMs.average() else 1000.0
+                                            val sdf = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+                                            val dateStr = sdf.format(java.util.Date())
+                                            
+                                            viewModel.onEvent(MainEvent.SaveTestResult(
+                                                com.fein.dytec.presentation.TestResultHistory(
+                                                    id = java.util.UUID.randomUUID().toString(),
+                                                    timestamp = System.currentTimeMillis(),
+                                                    dateString = dateStr,
+                                                    finalScore = diagnosticState.rawScore,
+                                                    avgRt = avgRt,
+                                                    predictionLabel = diagnosticState.predictionLabel!!,
+                                                    predictionProbabilities = diagnosticState.predictionProbabilities,
+                                                    userAge = diagnosticState.userAge
+                                                )
+                                            ))
                                             viewModel.onEvent(MainEvent.NavigateTo(Screen.DiagnosticResult))
                                         }
                                     }
@@ -236,26 +257,41 @@ class MainActivity : ComponentActivity() {
                                         stanine = diagnosticState.finalStanine,
                                         score = diagnosticState.rawScore,
                                         onContinue = {
-                                            viewModel.onEvent(MainEvent.CompleteOnboarding(
-                                                name = onboardingState.name,
-                                                age = onboardingState.age,
-                                                tookDiagnostic = true
-                                            ))
+                                            if (state.isOnboardingCompleted) {
+                                                viewModel.onEvent(MainEvent.NavigateTo(Screen.Home))
+                                            } else {
+                                                viewModel.onEvent(MainEvent.CompleteOnboarding(
+                                                    name = onboardingState.name,
+                                                    age = onboardingState.age,
+                                                    tookDiagnostic = true
+                                                ))
+                                            }
                                         }
                                     )
                                 }
                                 Screen.Home -> {
                                     HomeScreen(
                                         mainState = state,
-                                        onEvent = viewModel::onEvent
+                                        onEvent = viewModel::onEvent,
+                                        onStartDiagnosticTest = {
+                                            val ageDouble = state.userAge.toDoubleOrNull() ?: 8.5
+                                            diagnosticViewModel.reset(ageDouble)
+                                            viewModel.onEvent(MainEvent.NavigateTo(Screen.Diagnostic))
+                                        }
                                     )
                                 }
                                 Screen.TestDetail -> {
-                                    com.fein.dytec.ui.home.TestDetailScreen(
-                                        onBack = {
-                                            viewModel.onEvent(MainEvent.NavigateBack)
-                                        }
-                                    )
+                                    val historyItem = state.selectedHistoryItem
+                                    if (historyItem != null) {
+                                        com.fein.dytec.ui.home.TestDetailScreen(
+                                            historyItem = historyItem,
+                                            onBack = {
+                                                viewModel.onEvent(MainEvent.NavigateBack)
+                                            }
+                                        )
+                                    } else {
+                                        LaunchedEffect(Unit) { viewModel.onEvent(MainEvent.NavigateBack) }
+                                    }
                                 }
                                 Screen.Lesson -> {
                                     com.fein.dytec.ui.lesson.LessonScreen(
